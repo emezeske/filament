@@ -33,6 +33,9 @@
 
 #include <stdint.h>
 
+
+#include <utils/Log.h>
+
 namespace filament {
 
 DescriptorSet::DescriptorSet() noexcept = default;
@@ -105,6 +108,7 @@ void DescriptorSet::bind(FEngine::DriverApi& driver, DescriptorSetBindingPoints 
     // TODO: on debug check that dynamicOffsets is large enough
     assert_invariant(mDirty.none());
     assert_invariant(mDescriptorSetHandle);
+    utils::slog.e <<"F boundset[" << (int) +set << "]=" << mDescriptorSetHandle.getId() << utils::io::endl;
     driver.bindDescriptorSet(mDescriptorSetHandle, +set, std::move(dynamicOffsets));
 }
 

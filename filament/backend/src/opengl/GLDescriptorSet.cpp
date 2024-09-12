@@ -341,12 +341,15 @@ void GLDescriptorSet::validate(HandleAllocatorGL& allocator,
         auto* const dsl = allocator.handle_cast < GLDescriptorSetLayout const * > (dslh);
         auto* const cur = allocator.handle_cast < GLDescriptorSetLayout const * > (pipelineLayout);
 
+
         UTILS_UNUSED_IN_RELEASE
         bool const pipelineLayoutMatchesDescriptorSetLayout = std::equal(
                 dsl->bindings.begin(), dsl->bindings.end(),
                 cur->bindings.begin(),
                 [](DescriptorSetLayoutBinding const& lhs,
                         DescriptorSetLayoutBinding const& rhs) {
+                    utils::slog.e <<"layout=" << (int)
+                        lhs.binding << "x" << (int) rhs.binding << utils::io::endl;
                     return lhs.type == rhs.type &&
                            lhs.stageFlags == rhs.stageFlags &&
                            lhs.binding == rhs.binding &&

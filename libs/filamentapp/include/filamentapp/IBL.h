@@ -22,6 +22,7 @@
 #include <math/vec3.h>
 
 #include <string>
+#include <sstream>
 
 namespace filament {
 class Engine;
@@ -42,6 +43,8 @@ class IBL {
 public:
     explicit IBL(filament::Engine& engine);
     ~IBL();
+
+    bool loadFromEquirect2(const utils::Path& path);
 
     bool loadFromEquirect(const utils::Path& path);
     bool loadFromDirectory(const utils::Path& path);

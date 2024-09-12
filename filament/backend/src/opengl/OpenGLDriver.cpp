@@ -1697,6 +1697,7 @@ void OpenGLDriver::createDescriptorSetLayoutR(Handle<HwDescriptorSetLayout> dslh
 void OpenGLDriver::createDescriptorSetR(Handle<HwDescriptorSet> dsh,
         Handle<HwDescriptorSetLayout> dslh) {
     DEBUG_MARKER()
+    utils::slog.e <<"creating set=" << dsh.getId() << " from layout=" << dslh.getId() << utils::io::endl;
     GLDescriptorSetLayout const* dsl = handle_cast<GLDescriptorSetLayout*>(dslh);
     construct<GLDescriptorSet>(dsh, mContext, dslh, dsl);
 }
@@ -3842,6 +3843,14 @@ void OpenGLDriver::bindPipeline(PipelineState const& state) {
     mValidProgram = useProgram(p);
     (*mCurrentPushConstants) = p->getPushConstants();
     mCurrentSetLayout = state.pipelineLayout.setLayout;
+
+    utils::slog.e <<"bind pipeline=" << (&state) << " program=" << state.program.getId() <<
+        " (name=" << p->name.c_str() << ")" << 
+        utils::io::endl;    
+    for (size_t i = 0; i < mCurrentSetLayout.size(); ++i) {
+        utils::slog.e <<"pipeline bound layout[" << i << "]=" <<    mCurrentSetLayout[i].getId() << utils::io::endl;
+    }
+    
     // TODO: we should validate that the pipeline layout matches the program's
 }
 
@@ -3871,6 +3880,7 @@ void OpenGLDriver::bindDescriptorSet(
         backend::descriptor_set_t set,
         backend::DescriptorSetOffsetArray&& offsets) {
     // handle_cast<> here also serves to validate the handle (it actually cannot return nullptr)
+    utils::slog.e <<"bound set[" << (int) set << "]=" << dsh.getId() << utils::io::endl;
     GLDescriptorSet const* const ds = handle_cast<GLDescriptorSet*>(dsh);
     if (ds) {
         assert_invariant(set < MAX_DESCRIPTOR_SET_COUNT);
@@ -3903,6 +3913,7 @@ void OpenGLDriver::updateDescriptors(utils::bitset8 invalidDescriptorSets) noexc
         auto const& entry = boundDescriptorSets[set];
         if (entry.dsh) {
             GLDescriptorSet* const ds = handle_cast<GLDescriptorSet*>(entry.dsh);
+            utils::slog.e <<"updating[" << set << "]=" << entry.dsh.getId() << utils::io::endl;
 #ifndef NDEBUG
             if (UTILS_UNLIKELY(!offsetOnly[set])) {
                 // validate that this descriptor-set layout matches the layout set in the pipeline

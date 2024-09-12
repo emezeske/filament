@@ -555,7 +555,7 @@ void FilamentApp::loadIBL(std::string_view path) {
     mIBL = std::make_unique<IBL>(*mEngine);
 
     if (!iblPath.isDirectory()) {
-        if (!mIBL->loadFromEquirect(iblPath)) {
+        if (!mIBL->loadFromEquirect2(iblPath)) {
             std::cerr << "Could not load the specified IBL: " << iblPath << std::endl;
             mIBL.reset(nullptr);
             return;

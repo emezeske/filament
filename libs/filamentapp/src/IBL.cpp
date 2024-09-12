@@ -25,6 +25,8 @@
 
 #include <ktxreader/Ktx1Reader.h>
 
+#include <imageio/ImageDecoder.h>
+
 #include <filament-iblprefilter/IBLPrefilterContext.h>
 
 #include <stb_image.h>
@@ -36,6 +38,8 @@
 #include <string>
 
 #include <string.h>
+
+#include <utils/Log.h>
 
 using namespace filament;
 using namespace filament::math;
@@ -80,6 +84,67 @@ bool IBL::loadFromEquirect(Path const& path) {
     Texture::PixelBufferDescriptor buffer(
             data, size,Texture::Format::RGB, Texture::Type::FLOAT,
             [](void* buffer, size_t size, void* user) { stbi_image_free(buffer); });
+
+    Texture* const equirect = Texture::Builder()
+            .width((uint32_t)w)
+            .height((uint32_t)h)
+            .levels(0xff)
+            .format(Texture::InternalFormat::R11F_G11F_B10F)
+            .sampler(Texture::Sampler::SAMPLER_2D)
+            .build(mEngine);
+
+    equirect->setImage(mEngine, 0, std::move(buffer));
+
+    IBLPrefilterContext context(mEngine);
+    IBLPrefilterContext::EquirectangularToCubemap equirectangularToCubemap(context);
+    IBLPrefilterContext::SpecularFilter specularFilter(context);
+    IBLPrefilterContext::IrradianceFilter irradianceFilter(context);
+
+    mSkyboxTexture = equirectangularToCubemap(equirect);
+
+    mEngine.destroy(equirect);
+
+    mTexture = specularFilter(mSkyboxTexture);
+
+    mFogTexture = irradianceFilter({ .generateMipmap=false }, mSkyboxTexture);
+    mFogTexture->generateMipmaps(mEngine);
+
+    mIndirectLight = IndirectLight::Builder()
+            .reflections(mTexture)
+            .intensity(IBL_INTENSITY)
+            .build(mEngine);
+
+    mSkybox = Skybox::Builder()
+            .environment(mSkyboxTexture)
+            .showSun(true)
+            .build(mEngine);
+
+    return true;
+}
+
+bool IBL::loadFromEquirect2(Path const& path) {
+    if (!path.exists()) {
+        return false;
+    }
+
+    std::ifstream in_stream(path.getAbsolutePath().c_str(), std::ios::binary);
+
+    image::LinearImage* image = new image::LinearImage(
+            image::ImageDecoder::decode(in_stream, path.getAbsolutePath().c_str()));
+
+    uint32_t const w = image->getWidth();
+    uint32_t const h = image->getHeight();
+
+    Texture::PixelBufferDescriptor buffer(
+            image->getPixelRef(), w * h * image->getChannels() * sizeof(float),
+            filament::Texture::Format::RGB, filament::Texture::Type::FLOAT,
+            [](void* buf, size_t, void* data) {
+                // Called after filament finishes uploading the data to the GPU.
+                // Converts the image back into a unique_ptr to destroy it.
+                image::LinearImage* image = reinterpret_cast<image::LinearImage*>(data);
+                delete image;
+            },
+            image);
 
     Texture* const equirect = Texture::Builder()
             .width((uint32_t)w)

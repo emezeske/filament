@@ -994,6 +994,7 @@ void RenderPass::Executor::execute(FEngine& engine,
 
                     ma = mi->getMaterial();
 
+
                     if (UTILS_LIKELY(!scissorOverride)) {
                         backend::Viewport scissor = mi->getScissor();
                         if (UTILS_UNLIKELY(mi->hasScissor())) {
@@ -1009,8 +1010,17 @@ void RenderPass::Executor::execute(FEngine& engine,
 
                     // Each material has its own version of the per-view descriptor-set layout,
                     // because it depends on the material features (e.g. lit/unlit)
+                    auto i = ma->getPerViewDescriptorSetLayout(info.materialVariant).getHandle();
                     pipeline.pipelineLayout.setLayout[+DescriptorSetBindingPoints::PER_VIEW] =
                             ma->getPerViewDescriptorSetLayout(info.materialVariant).getHandle();
+
+                    auto program = ma->getProgram(info.materialVariant);
+
+                    utils::slog.e << "setting [" << +DescriptorSetBindingPoints::PER_VIEW
+                                  << "] layout=" << i.getId()
+                                  <<" material name=" << ma->getName().c_str()
+                                  << " program=" << program.getId() << 
+                        utils::io::endl;
 
                     // Each material has a per-material descriptor-set layout which encodes the
                     // material's parameters (ubo and samplers)
@@ -1028,6 +1038,9 @@ void RenderPass::Executor::execute(FEngine& engine,
                         // We have a ColorPassDescriptorSet, we need to go through it for binding
                         // the per-view descriptor-set because its layout can change based on the
                         // material.
+                        auto program = ma->getProgram(info.materialVariant);
+                        utils::slog.e <<"binding color pass descriptor set" <<
+                            " program=" << program.getId() << utils::io::endl;
                         mColorPassDescriptorSet->bind(driver, ma->getPerViewLayoutIndex());
                     }
 
@@ -1040,6 +1053,8 @@ void RenderPass::Executor::execute(FEngine& engine,
 
                 if (UTILS_UNLIKELY(memcmp(&pipeline, &currentPipeline, sizeof(PipelineState)) != 0)) {
                     currentPipeline = pipeline;
+                    utils::slog.e <<"frontend bindpipeline=" << &pipeline << " program=" <<
+                        pipeline.program.getId() << utils::io::endl;
                     driver.bindPipeline(pipeline);
                 }
 
@@ -1054,6 +1069,7 @@ void RenderPass::Executor::execute(FEngine& engine,
                                       0 : info.index * sizeof(PerRenderableData);
 
                 assert_invariant(info.dsh);
+                utils::slog.e <<"binding per-renderable set=" << info.dsh.getId() << utils::io::endl;
                 driver.bindDescriptorSet(info.dsh,
                         +DescriptorSetBindingPoints::PER_RENDERABLE,
                         {{ offset, info.skinningOffset }, driver});
