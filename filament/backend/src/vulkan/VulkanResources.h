@@ -17,7 +17,7 @@
 #ifndef TNT_FILAMENT_BACKEND_VULKANRESOURCES_H
 #define TNT_FILAMENT_BACKEND_VULKANRESOURCES_H
 
-#include "VulkanUtility.h"
+#include "vulkan/utils/CappedArray.h"
 
 #include <backend/Handle.h>
 
@@ -25,6 +25,7 @@
 #include <utils/Mutex.h>
 #include <utils/Panic.h>
 
+#include <memory>
 #include <mutex>
 #include <unordered_set>
 
@@ -168,7 +169,7 @@ namespace {
 // When the size of the resource set is known to be small, (for example for VulkanRenderPrimitive),
 // we just use a std::array to back the set.
 template<std::size_t SIZE>
-using FixedCapacityResourceSet = CappedArray<VulkanResource*, SIZE>;
+using FixedCapacityResourceSet = fvkutils::CappedArray<VulkanResource*, SIZE>;
 
 // robin_set/map are useful for sets that are acquire only and the set will be iterated when the set
 // is cleared.

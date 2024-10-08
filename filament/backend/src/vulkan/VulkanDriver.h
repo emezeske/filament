@@ -27,10 +27,10 @@
 #include "VulkanResourceAllocator.h"
 #include "VulkanSamplerCache.h"
 #include "VulkanStagePool.h"
-#include "VulkanUtility.h"
 #include "backend/DriverEnums.h"
 #include "caching/VulkanDescriptorSetManager.h"
 #include "caching/VulkanPipelineLayoutCache.h"
+#include "vulkan/utils/Definitions.h"
 
 #include "DriverBase.h"
 #include "private/backend/Driver.h"
@@ -144,13 +144,14 @@ private:
     struct {
         VulkanProgram* program;
         VkPipelineLayout pipelineLayout;
-        DescriptorSetMask descriptorSetMask;
+        fvkutils::DescriptorSetMask descriptorSetMask;
     } mBoundPipeline = {};
 
     // We need to store information about a render pass to enable better barriers at the end of a
     // renderpass.
     struct {
-        using AttachmentArray = CappedArray<VulkanAttachment, MAX_RENDERTARGET_ATTACHMENT_TEXTURES>;
+        using AttachmentArray =
+                fvkutils::CappedArray<VulkanAttachment, MAX_RENDERTARGET_ATTACHMENT_TEXTURES>;
         AttachmentArray attachments;
         bool hasColorResolve = false;
     } mRenderPassFboInfo = {};

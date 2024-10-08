@@ -20,7 +20,6 @@
 #include "VulkanCommands.h"
 #include "VulkanMemory.h"
 #include "VulkanResources.h"
-#include "VulkanUtility.h"
 
 #include <backend/DriverEnums.h>
 #include <backend/TargetBufferInfo.h>

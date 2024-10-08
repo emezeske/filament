@@ -24,7 +24,8 @@
 #include "VulkanResources.h"
 #include "VulkanSwapChain.h"
 #include "VulkanTexture.h"
-#include "VulkanUtility.h"
+#include "utils/CappedArray.h"
+#include "utils/Definitions.h"
 
 #include <private/backend/SamplerGroup.h>
 #include <backend/Program.h>
@@ -34,6 +35,8 @@
 #include <utils/Mutex.h>
 #include <utils/StructureOfArrays.h>
 
+#include <bluevk/BlueVK.h>
+
 namespace filament::backend {
 
 namespace {
@@ -41,11 +44,11 @@ namespace {
 template<typename Bitmask>
 inline uint8_t collapsedCount(Bitmask const& mask) {
     static_assert(sizeof(mask) <= 64);
-    constexpr uint64_t VERTEX_MASK = (1ULL << getFragmentStageShift<Bitmask>()) - 1ULL;
-    constexpr uint64_t FRAGMENT_MASK = (VERTEX_MASK << getFragmentStageShift<Bitmask>());
+    constexpr uint64_t VERTEX_MASK = (1ULL << fvkutils::getFragmentStageShift<Bitmask>()) - 1ULL;
+    constexpr uint64_t FRAGMENT_MASK = (VERTEX_MASK << fvkutils::getFragmentStageShift<Bitmask>());
     uint64_t val = mask.getValue();
-    val = ((val & VERTEX_MASK) >> getVertexStageShift<Bitmask>()) |
-        ((val & FRAGMENT_MASK) >> getFragmentStageShift<Bitmask>());
+    val = ((val & VERTEX_MASK) >> fvkutils::getVertexStageShift<Bitmask>()) |
+          ((val & FRAGMENT_MASK) >> fvkutils::getFragmentStageShift<Bitmask>());
     return (uint8_t) Bitmask(val).count();
 }
 
@@ -64,10 +67,10 @@ struct VulkanDescriptorSetLayout : public VulkanResource, HwDescriptorSetLayout 
     // The bitmask representation of a set layout.
     struct Bitmask {
         // TODO: better utiltize the space below and use bitset instead.
-        UniformBufferBitmask ubo;         // 8 bytes
-        UniformBufferBitmask dynamicUbo;  // 8 bytes
-        SamplerBitmask sampler;           // 8 bytes
-        InputAttachmentBitmask inputAttachment; // 8 bytes
+        fvkutils::UniformBufferBitmask ubo;         // 8 bytes
+        fvkutils::UniformBufferBitmask dynamicUbo;  // 8 bytes
+        fvkutils::SamplerBitmask sampler;           // 8 bytes
+        fvkutils::InputAttachmentBitmask inputAttachment; // 8 bytes
 
         bool operator==(Bitmask const& right) const {
             return ubo == right.ubo && dynamicUbo == right.dynamicUbo && sampler == right.sampler &&
@@ -182,7 +185,7 @@ private:
 
 struct VulkanProgram : public HwProgram, VulkanResource {
 
-    using BindingList = CappedArray<uint16_t, MAX_SAMPLER_COUNT>;
+    using BindingList = fvkutils::CappedArray<uint16_t, MAX_SAMPLER_COUNT>;
 
     VulkanProgram(VkDevice device, Program const& builder) noexcept;
 

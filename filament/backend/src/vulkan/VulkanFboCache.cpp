@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "vulkan/VulkanFboCache.h"
-
-#include <utils/Panic.h>
+#include "VulkanFboCache.h"
 
 #include "VulkanConstants.h"
-#include "VulkanUtility.h"
+#include "vulkan/utils/Image.h"
+
+#include <utils/Panic.h>
 
 // If any VkRenderPass or VkFramebuffer is unused for more than TIME_BEFORE_EVICTION frames, it
 // is evicted from the cache.
@@ -212,7 +212,7 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
         if (config.colorFormat[i] == VK_FORMAT_UNDEFINED) {
             continue;
         }
-        const VkImageLayout subpassLayout = imgutil::getVkLayout(VulkanLayout::COLOR_ATTACHMENT);
+        const VkImageLayout subpassLayout = fvkutils::getVkLayout(VulkanLayout::COLOR_ATTACHMENT);
         uint32_t index;
 
         if (!hasSubpasses) {
@@ -257,8 +257,8 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
             .storeOp = kEnableStore,
             .stencilLoadOp = kDontCare,
             .stencilStoreOp = kDisableStore,
-            .initialLayout = imgutil::getVkLayout(VulkanLayout::COLOR_ATTACHMENT),
-            .finalLayout = imgutil::getVkLayout(FINAL_COLOR_ATTACHMENT_LAYOUT),
+            .initialLayout = fvkutils::getVkLayout(VulkanLayout::COLOR_ATTACHMENT),
+            .finalLayout = fvkutils::getVkLayout(FINAL_COLOR_ATTACHMENT_LAYOUT),
         };
     }
 
@@ -285,7 +285,7 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
 
         pResolveAttachment->attachment = attachmentIndex;
         pResolveAttachment->layout
-                = imgutil::getVkLayout(VulkanLayout::COLOR_ATTACHMENT_RESOLVE);
+                = fvkutils::getVkLayout(VulkanLayout::COLOR_ATTACHMENT_RESOLVE);
         ++pResolveAttachment;
 
         attachments[attachmentIndex++] = {
@@ -295,8 +295,8 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
             .storeOp = kEnableStore,
             .stencilLoadOp = kDontCare,
             .stencilStoreOp = kDisableStore,
-            .initialLayout = imgutil::getVkLayout(VulkanLayout::COLOR_ATTACHMENT),
-            .finalLayout = imgutil::getVkLayout(FINAL_COLOR_ATTACHMENT_LAYOUT),
+            .initialLayout = fvkutils::getVkLayout(VulkanLayout::COLOR_ATTACHMENT),
+            .finalLayout = fvkutils::getVkLayout(FINAL_COLOR_ATTACHMENT_LAYOUT),
         };
     }
 
@@ -305,7 +305,7 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
         const bool clear = any(config.clear & TargetBufferFlags::DEPTH);
         const bool discardStart = any(config.discardStart & TargetBufferFlags::DEPTH);
         const bool discardEnd = any(config.discardEnd & TargetBufferFlags::DEPTH);
-        depthAttachmentRef.layout = imgutil::getVkLayout(VulkanLayout::DEPTH_ATTACHMENT);
+        depthAttachmentRef.layout = fvkutils::getVkLayout(VulkanLayout::DEPTH_ATTACHMENT);
         depthAttachmentRef.attachment = attachmentIndex;
         attachments[attachmentIndex++] = {
             .format = config.depthFormat,
@@ -314,8 +314,8 @@ VkRenderPass VulkanFboCache::getRenderPass(RenderPassKey config) noexcept {
             .storeOp = discardEnd ? kDisableStore : kEnableStore,
             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
             .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = imgutil::getVkLayout(config.initialDepthLayout),
-            .finalLayout = imgutil::getVkLayout(FINAL_DEPTH_ATTACHMENT_LAYOUT),
+            .initialLayout = fvkutils::getVkLayout(config.initialDepthLayout),
+            .finalLayout = fvkutils::getVkLayout(FINAL_DEPTH_ATTACHMENT_LAYOUT),
         };
     }
     renderPassInfo.attachmentCount = attachmentIndex;

@@ -19,7 +19,7 @@
 
 #include <vulkan/VulkanResourceAllocator.h>
 #include <vulkan/VulkanTexture.h>
-#include <vulkan/VulkanUtility.h>
+#include <vulkan/utils/Definitions.h>  // For DescriptorSetMask
 
 #include <backend/DriverEnums.h>
 #include <backend/Program.h>
@@ -62,7 +62,7 @@ public:
     void bind(uint8_t setIndex, VulkanDescriptorSet* set, backend::DescriptorSetOffsetArray&& offsets);
 
     void commit(VulkanCommandBuffer* commands, VkPipelineLayout pipelineLayout,
-            DescriptorSetMask const& setMask);
+            fvkutils::DescriptorSetMask const& setMask);
 
     void setPlaceHolders(VkSampler sampler, VulkanTexture* texture,
             VulkanBufferObject* bufferObject) noexcept;
@@ -85,7 +85,7 @@ private:
 
     struct BoundInfo {
         VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-        DescriptorSetMask setMask;
+        fvkutils::DescriptorSetMask setMask;
         DescriptorSetHistoryArray boundSets;
 
         bool operator==(BoundInfo const& info) const {

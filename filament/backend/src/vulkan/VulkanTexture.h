@@ -21,7 +21,7 @@
 
 #include "VulkanBuffer.h"
 #include "VulkanResources.h"
-#include "VulkanImageUtility.h"
+#include "vulkan/utils/Image.h"
 
 #include <utils/Hash.h>
 #include <utils/RangeMap.h>

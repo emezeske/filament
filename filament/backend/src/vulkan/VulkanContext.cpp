@@ -20,19 +20,14 @@
 #include "VulkanHandles.h"
 #include "VulkanMemory.h"
 #include "VulkanTexture.h"
-#include "VulkanUtility.h"
 
 #include <backend/PixelBufferDescriptor.h>
 
 #include <utils/Panic.h>
-#include <utils/FixedCapacityVector.h>
 
 #include <algorithm> // for std::max
 
 using namespace bluevk;
-
-using utils::FixedCapacityVector;
-
 
 namespace {
 

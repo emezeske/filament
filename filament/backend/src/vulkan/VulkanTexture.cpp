@@ -17,7 +17,7 @@
 #include "VulkanMemory.h"
 #include "VulkanResourceAllocator.h"
 #include "VulkanTexture.h"
-#include "VulkanUtility.h"
+#include "vulkan/utils/Conversion.h"
 
 #include <DataReshaper.h>
 #include <backend/DriverEnums.h>
@@ -123,7 +123,7 @@ VulkanTextureState::VulkanTextureState(
           mVkFormat(format),
           mViewType(viewType),
           mFullViewRange {
-                  filament::backend::getImageAspect(format), 0, levels, 0, layerCount
+                  fvkutils::getImageAspect(format), 0, levels, 0, layerCount
           },
           mStagePool(stagePool),
           mDevice(device),
@@ -153,7 +153,7 @@ VulkanTexture::VulkanTexture(
           mAllocator(handleAllocator),
           mState(handleAllocator->initHandle<VulkanTextureState>(
                   device, allocator, commands, stagePool,
-                  format, imgutil::getViewType(SamplerType::SAMPLER_2D), 1, 1)) {
+                  format, fvkutils::getViewType(SamplerType::SAMPLER_2D), 1, 1)) {
     auto* const state = getSharedState();
     state->mTextureImage = image;
     mPrimaryViewRange = state->mFullViewRange;
@@ -169,7 +169,7 @@ VulkanTexture::VulkanTexture(VkDevice device, VkPhysicalDevice physicalDevice,
               heapAllocated ? VulkanResourceType::HEAP_ALLOCATED : VulkanResourceType::TEXTURE),
       mAllocator(handleAllocator),
       mState(handleAllocator->initHandle<VulkanTextureState>(device, allocator, commands, stagePool,
-              backend::getVkFormat(tformat), imgutil::getViewType(target), levels,
+              fvkutils::getVkFormat(tformat), fvkutils::getViewType(target), levels,
               getLayerCount(target, depth))) {
     auto* const state = getSharedState();
 
@@ -249,16 +249,16 @@ VulkanTexture::VulkanTexture(VkDevice device, VkPhysicalDevice physicalDevice,
     // any kind of attachment (color or depth).
     const auto& limits = context.getPhysicalDeviceLimits();
     if (imageInfo.usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
-        samples = reduceSampleCount(samples, isVkDepthFormat(state->mVkFormat)
-                                                     ? limits.sampledImageDepthSampleCounts
-                                                     : limits.sampledImageColorSampleCounts);
+        samples = fvkutils::reduceSampleCount(samples,
+                fvkutils::isVkDepthFormat(state->mVkFormat) ? limits.sampledImageDepthSampleCounts
+                                                            : limits.sampledImageColorSampleCounts);
     }
     if (imageInfo.usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
-        samples = reduceSampleCount(samples, limits.framebufferColorSampleCounts);
+        samples = fvkutils::reduceSampleCount(samples, limits.framebufferColorSampleCounts);
     }
 
     if (imageInfo.usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) {
-        samples = reduceSampleCount(samples, limits.sampledImageDepthSampleCounts);
+        samples = fvkutils::reduceSampleCount(samples, limits.sampledImageDepthSampleCounts);
     }
     this->samples = samples;
     imageInfo.samples = (VkSampleCountFlagBits) samples;
@@ -309,7 +309,7 @@ VulkanTexture::VulkanTexture(VkDevice device, VkPhysicalDevice physicalDevice,
 
     VulkanCommandBuffer& commandsBuf = state->mCommands->get();
     commandsBuf.acquire(this);
-    transitionLayout(&commandsBuf, mPrimaryViewRange, imgutil::getDefaultLayout(imageInfo.usage));
+    transitionLayout(&commandsBuf, mPrimaryViewRange, fvkutils::getDefaultLayout(imageInfo.usage));
 }
 
 VulkanTexture::VulkanTexture(VkDevice device, VkPhysicalDevice physicalDevice,
@@ -377,8 +377,8 @@ void VulkanTexture::updateImage(const PixelBufferDescriptor& data, uint32_t widt
     }
 
     // If format conversion is both required and supported, use vkCmdBlitImage.
-    const VkFormat hostFormat = backend::getVkFormat(hostData->format, hostData->type);
-    const VkFormat deviceFormat = getVkFormatLinear(state->mVkFormat);
+    const VkFormat hostFormat = fvkutils::getVkFormat(hostData->format, hostData->type);
+    const VkFormat deviceFormat = fvkutils::getVkFormatLinear(state->mVkFormat);
     if (hostFormat != deviceFormat && hostFormat != VK_FORMAT_UNDEFINED) {
         assert_invariant(xoffset == 0 && yoffset == 0 && zoffset == 0 &&
                 "Offsets not yet supported when format conversion is required.");
@@ -437,10 +437,10 @@ void VulkanTexture::updateImage(const PixelBufferDescriptor& data, uint32_t widt
 
     VulkanLayout const newLayout = VulkanLayout::TRANSFER_DST;
     VulkanLayout nextLayout = getLayout(transitionRange.baseArrayLayer, miplevel);
-    VkImageLayout const newVkLayout = imgutil::getVkLayout(newLayout);
+    VkImageLayout const newVkLayout = fvkutils::getVkLayout(newLayout);
 
     if (nextLayout == VulkanLayout::UNDEFINED) {
-        nextLayout = imgutil::getDefaultLayout(this->usage);
+        nextLayout = fvkutils::getDefaultLayout(this->usage);
     }
 
     transitionLayout(&commands, transitionRange, newLayout);
@@ -485,8 +485,8 @@ void VulkanTexture::updateImageWithBlit(const PixelBufferDescriptor& hostData, u
     VulkanLayout const oldLayout = getLayout(layer, miplevel);
     transitionLayout(&commands, range, newLayout);
 
-    vkCmdBlitImage(cmdbuf, stage->image, imgutil::getVkLayout(VulkanLayout::TRANSFER_SRC),
-            state->mTextureImage, imgutil::getVkLayout(newLayout), 1, blitRegions, VK_FILTER_NEAREST);
+    vkCmdBlitImage(cmdbuf, stage->image, fvkutils::getVkLayout(VulkanLayout::TRANSFER_SRC),
+            state->mTextureImage, fvkutils::getVkLayout(newLayout), 1, blitRegions, VK_FILTER_NEAREST);
 
     transitionLayout(&commands, range, oldLayout);
 }
@@ -532,7 +532,7 @@ VkImageView VulkanTexture::getImageView(VkImageSubresourceRange range, VkImageVi
 VkImageAspectFlags VulkanTexture::getImageAspect() const {
     // Helper function in VulkanUtility
     auto* const state = getSharedState();
-    return filament::backend::getImageAspect(state->mVkFormat);
+    return fvkutils::getImageAspect(state->mVkFormat);
 }
 
 bool VulkanTexture::transitionLayout(VulkanCommandBuffer* commands,
@@ -574,7 +574,7 @@ bool VulkanTexture::transitionLayout(
                 if (layout == newLayout) {
                     continue;
                 }
-                hasTransitions = hasTransitions || imgutil::transitionLayout(cmdbuf, {
+                hasTransitions = hasTransitions || fvkutils::transitionLayout(cmdbuf, {
                     .image = state->mTextureImage,
                     .oldLayout = layout,
                     .newLayout = newLayout,
@@ -589,7 +589,7 @@ bool VulkanTexture::transitionLayout(
             }
         }
     } else if (newLayout != oldLayout) {
-        hasTransitions = imgutil::transitionLayout(cmdbuf, {
+        hasTransitions = fvkutils::transitionLayout(cmdbuf, {
             .image = state->mTextureImage,
             .oldLayout = oldLayout,
             .newLayout = newLayout,
@@ -627,7 +627,7 @@ void VulkanTexture::samplerToAttachmentBarrier(VulkanCommandBuffer* commands,
     VkCommandBuffer const cmdbuf = commands->buffer();
     auto* const state = getSharedState();
     VkImageLayout const layout =
-            imgutil::getVkLayout(getLayout(range.baseArrayLayer, range.baseMipLevel));
+            fvkutils::getVkLayout(getLayout(range.baseArrayLayer, range.baseMipLevel));
     VkImageMemoryBarrier barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
@@ -651,7 +651,7 @@ void VulkanTexture::attachmentToSamplerBarrier(VulkanCommandBuffer* commands,
     VkCommandBuffer const cmdbuf = commands->buffer();
     auto* const state = getSharedState();
     VkImageLayout const layout
-            = imgutil::getVkLayout(getLayout(range.baseArrayLayer, range.baseMipLevel));
+            = fvkutils::getVkLayout(getLayout(range.baseArrayLayer, range.baseMipLevel));
     VkImageMemoryBarrier barrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,

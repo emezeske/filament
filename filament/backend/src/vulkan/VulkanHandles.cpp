@@ -23,8 +23,10 @@
 
 #include "VulkanMemory.h"
 #include "VulkanResourceAllocator.h"
-#include "VulkanUtility.h"
-#include "spirv/VulkanSpirvUtils.h"
+#include "vulkan/utils/Conversion.h"
+#include "vulkan/utils/Definitions.h"
+#include "vulkan/utils/Image.h"
+#include "vulkan/utils/Spirv.h"
 
 #include <backend/platforms/VulkanPlatform.h>
 
@@ -59,10 +61,10 @@ template<typename Bitmask>
 inline void fromStageFlags(backend::ShaderStageFlags stage, descriptor_binding_t binding,
         Bitmask& mask) {
     if ((bool) (stage & ShaderStageFlags::VERTEX)) {
-        mask.set(binding + getVertexStageShift<Bitmask>());
+        mask.set(binding + fvkutils::getVertexStageShift<Bitmask>());
     }
     if ((bool) (stage & ShaderStageFlags::FRAGMENT)) {
-        mask.set(binding + getFragmentStageShift<Bitmask>());
+        mask.set(binding + fvkutils::getFragmentStageShift<Bitmask>());
     }
 }
 
@@ -188,7 +190,7 @@ VulkanProgram::VulkanProgram(VkDevice device, Program const& builder) noexcept
         size_t dataSize = blob.size();
 
         if (!specializationConstants.empty()) {
-            workaroundSpecConstant(blob, specializationConstants, shader);
+            fvkutils::workaroundSpecConstant(blob, specializationConstants, shader);
             data = (uint32_t*) shader.data();
             dataSize = shader.size() * 4;
         }
@@ -272,8 +274,8 @@ VulkanRenderTarget::VulkanRenderTarget(VkDevice device, VkPhysicalDevice physica
     // Constrain the sample count according to both kinds of sample count masks obtained from
     // VkPhysicalDeviceProperties. This is consistent with the VulkanTexture constructor.
     auto const& limits = context.getPhysicalDeviceLimits();
-    mSamples = samples = reduceSampleCount(samples, limits.framebufferDepthSampleCounts &
-            limits.framebufferColorSampleCounts);
+    mSamples = samples = fvkutils::reduceSampleCount(samples,
+            limits.framebufferDepthSampleCounts & limits.framebufferColorSampleCounts);
 
     // Create sidecar MSAA textures for color attachments if they don't already exist.
     for (int index = 0; index < MRT::MAX_SUPPORTED_RENDER_TARGET_COUNT; index++) {
@@ -392,7 +394,7 @@ VulkanVertexBufferInfo::VulkanVertexBufferInfo(
         Attribute attrib = attributes[attribIndex];
         bool const isInteger = attrib.flags & Attribute::FLAG_INTEGER_TARGET;
         bool const isNormalized = attrib.flags & Attribute::FLAG_NORMALIZED;
-        VkFormat vkformat = getVkFormat(attrib.type, isNormalized, isInteger);
+        VkFormat vkformat = fvkutils::getVkFormat(attrib.type, isNormalized, isInteger);
 
         // HACK: Re-use the positions buffer as a dummy buffer for disabled attributes. Filament's
         // vertex shaders declare all attributes as either vec4 or uvec4 (the latter for bone

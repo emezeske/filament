@@ -19,8 +19,9 @@
 #include "DataReshaper.h"
 #include "VulkanCommands.h"
 #include "VulkanHandles.h"
-#include "VulkanImageUtility.h"
 #include "VulkanTexture.h"
+#include "vulkan/utils/Conversion.h"  // getComponentType()
+#include "vulkan/utils/Image.h"
 
 #include <utils/Log.h>
 
@@ -217,7 +218,7 @@ void VulkanReadPixels::run(VulkanRenderTarget* srcTarget, uint32_t const x, uint
     };
     vkBeginCommandBuffer(cmdbuffer, &binfo);
 
-    imgutil::transitionLayout(cmdbuffer, {
+    fvkutils::transitionLayout(cmdbuffer, {
         .image = stagingImage,
         .oldLayout = VulkanLayout::UNDEFINED,
         .newLayout = VulkanLayout::TRANSFER_DST,
@@ -264,8 +265,8 @@ void VulkanReadPixels::run(VulkanRenderTarget* srcTarget, uint32_t const x, uint
             imageCopyRegion.srcOffset.y + imageCopyRegion.extent.height <= srcExtent.height);
 
     vkCmdCopyImage(cmdbuffer, srcAttachment.getImage(),
-            imgutil::getVkLayout(VulkanLayout::TRANSFER_SRC), stagingImage,
-            imgutil::getVkLayout(VulkanLayout::TRANSFER_DST), 1, &imageCopyRegion);
+            fvkutils::getVkLayout(VulkanLayout::TRANSFER_SRC), stagingImage,
+            fvkutils::getVkLayout(VulkanLayout::TRANSFER_DST), 1, &imageCopyRegion);
 
     // Restore the source image layout.
     srcTexture->transitionLayout(cmdbuffer, {}, srcRange, VulkanLayout::COLOR_ATTACHMENT);
@@ -317,8 +318,8 @@ void VulkanReadPixels::run(VulkanRenderTarget* srcTarget, uint32_t const x, uint
         vkMapMemory(device, stagingMemory, 0, VK_WHOLE_SIZE, 0, (void**) &srcPixels);
         srcPixels += subResourceLayout.offset;
 
-        if (!DataReshaper::reshapeImage(&p, getComponentType(srcFormat),
-                    getComponentCount(srcFormat), srcPixels,
+        if (!DataReshaper::reshapeImage(&p, fvkutils::getComponentType(srcFormat),
+                    fvkutils::getComponentCount(srcFormat), srcPixels,
                     static_cast<int>(subResourceLayout.rowPitch), static_cast<int>(width),
                     static_cast<int>(height), swizzle)) {
             FVK_LOGE << "Unsupported PixelDataFormat or PixelDataType" << utils::io::endl;

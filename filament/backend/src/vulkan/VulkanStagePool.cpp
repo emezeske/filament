@@ -17,9 +17,9 @@
 #include "VulkanStagePool.h"
 
 #include "VulkanConstants.h"
-#include "VulkanImageUtility.h"
 #include "VulkanMemory.h"
-#include "VulkanUtility.h"
+#include "vulkan/utils/Conversion.h"
+#include "vulkan/utils/Image.h"
 
 #include <utils/Panic.h>
 
@@ -70,7 +70,7 @@ VulkanStage const* VulkanStagePool::acquireStage(uint32_t numBytes) {
 
 VulkanStageImage const* VulkanStagePool::acquireImage(PixelDataFormat format, PixelDataType type,
         uint32_t width, uint32_t height) {
-    const VkFormat vkformat = getVkFormat(format, type);
+    const VkFormat vkformat = fvkutils::getVkFormat(format, type);
     for (auto image : mFreeImages) {
         if (image->format == vkformat && image->width == width && image->height == height) {
             mFreeImages.erase(image);
@@ -110,7 +110,7 @@ VulkanStageImage const* VulkanStagePool::acquireImage(PixelDataFormat format, Pi
 
     assert_invariant(result == VK_SUCCESS);
 
-    VkImageAspectFlags const aspectFlags = getImageAspect(vkformat);
+    VkImageAspectFlags const aspectFlags = fvkutils::getImageAspect(vkformat);
     VkCommandBuffer const cmdbuffer = mCommands->get().buffer();
 
     // We use VK_IMAGE_LAYOUT_GENERAL here because the spec says:
@@ -119,7 +119,7 @@ VulkanStageImage const* VulkanStagePool::acquireImage(PixelDataFormat format, Pi
     // VK_IMAGE_LAYOUT_PREINITIALIZED or VK_IMAGE_LAYOUT_GENERAL layout. Calling
     // vkGetImageSubresourceLayout for a linear image returns a subresource layout mapping that is
     // valid for either of those image layouts."
-    imgutil::transitionLayout(cmdbuffer, {
+    fvkutils::transitionLayout(cmdbuffer, {
             .image = image->image,
             .oldLayout = VulkanLayout::UNDEFINED,
             .newLayout = VulkanLayout::READ_WRITE, // (= VK_IMAGE_LAYOUT_GENERAL)
