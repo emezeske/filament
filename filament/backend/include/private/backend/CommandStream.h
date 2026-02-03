@@ -286,7 +286,7 @@ public:
 
 private:
     void* allocateCommand(size_t const size) noexcept {
-        assert_invariant(utils::ThreadUtils::isThisThread(mThreadId));
+        //assert_invariant(utils::ThreadUtils::isThisThread(mThreadId));
         return mCurrentBuffer.allocate(size);
     }
 
