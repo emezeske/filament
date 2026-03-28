@@ -78,6 +78,18 @@ bool CommandBufferQueue::isExitRequested() const {
     return bool(mExitRequested);
 }
 
+void CommandBufferQueue::signalPanic() {
+    std::lock_guard const lock(mLock);
+    mPanicked = true;
+    mExitRequested = EXIT_REQUESTED;
+    mCondition.notify_one();
+}
+
+bool CommandBufferQueue::isPanicked() const {
+    std::lock_guard const lock(mLock);
+    return mPanicked;
+}
+
 
 void CommandBufferQueue::flush() {
     FILAMENT_TRACING_CALL(FILAMENT_TRACING_CATEGORY_FILAMENT);
@@ -137,7 +149,7 @@ void CommandBufferQueue::flush() {
 
         mCondition.wait(lock, [this, requiredSize]() -> bool {
             // TODO: on macOS, we need to call pumpEvents from time to time
-            return mFreeSpace >= requiredSize;
+            return mFreeSpace >= requiredSize || mPanicked;
         });
     }
 }

@@ -140,7 +140,7 @@ public:
      */
     template<typename D, typename B, typename ... ARGS>
     std::enable_if_t<std::is_base_of_v<B, D>, D>*
-    construct(Handle<B> const& handle, ARGS&& ... args) noexcept {
+    construct(Handle<B> const& handle, ARGS&& ... args) {
         assert_invariant(handle);
         D* addr = handle_cast<D*>(const_cast<Handle<B>&>(handle));
         assert_invariant(addr);

@@ -43,14 +43,14 @@ private:
 public:
     template<typename B, typename... ARGS>
     static enabled_resource_ptr<B> make(ResourceManager* resManager, Handle<B> const& handle,
-            ARGS&&... args) noexcept {
+            ARGS&&... args) {
         D* ptr = resManager->construct<D, B>(handle, std::forward<ARGS>(args)...);
         return {ptr};
     }
 
     // This will alloc a handle and then construct the object.
     template<typename... ARGS>
-    static resource_ptr<D> construct(ResourceManager* resManager, ARGS&&... args) noexcept {
+    static resource_ptr<D> construct(ResourceManager* resManager, ARGS&&... args) {
         auto handle = resManager->allocHandle<D>();
         D* ptr = resManager->construct<D, D>(handle, std::forward<ARGS>(args)...);
         return {ptr};

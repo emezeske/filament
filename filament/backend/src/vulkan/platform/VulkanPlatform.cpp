@@ -29,6 +29,8 @@
 #include <utils/Panic.h>
 #include <utils/PrivateImplementation-impl.h>
 
+#include <unordered_set>
+
 using namespace utils;
 using namespace bluevk;
 
@@ -520,9 +522,21 @@ struct VulkanPlatformPrivate {
 
     bool mSharedContext = false;
     bool mForceXCBSwapchain = false;
+
+    // Tracks all live platform swap chains so terminate() can clean up any
+    // that were leaked (e.g. after a backend panic).
+    std::unordered_set<VulkanPlatformSwapChainBase*> mSwapChains;
 };
 
 void VulkanPlatform::terminate() {
+    // Destroy any swap chains that were not explicitly destroyed (e.g. leaked
+    // after a backend panic). Their VkSurfaceKHR must be released before the
+    // VkInstance is destroyed.
+    for (auto* swap_chain : mImpl->mSwapChains) {
+        delete swap_chain;
+    }
+    mImpl->mSwapChains.clear();
+
     if (!mImpl->mSharedContext) {
         vkDestroyDevice(mImpl->mDevice, VKALLOC);
         vkDestroyInstance(mImpl->mInstance, VKALLOC);
@@ -729,7 +743,9 @@ VkResult VulkanPlatform::recreate(SwapChainPtr handle) {
 }
 
 void VulkanPlatform::destroy(SwapChainPtr handle) {
-    delete static_cast<VulkanPlatformSwapChainBase*>(handle);
+    auto* const base = static_cast<VulkanPlatformSwapChainBase*>(handle);
+    mImpl->mSwapChains.erase(base);
+    delete base;
 }
 
 SwapChainPtr VulkanPlatform::createSwapChain(void* nativeWindow, uint64_t flags,
@@ -739,6 +755,7 @@ SwapChainPtr VulkanPlatform::createSwapChain(void* nativeWindow, uint64_t flags,
     if (headless) {
         VulkanPlatformHeadlessSwapChain* swapchain = new VulkanPlatformHeadlessSwapChain(
                 mImpl->mContext, mImpl->mDevice, mImpl->mGraphicsQueue, extent, flags);
+        mImpl->mSwapChains.insert(swapchain);
         return swapchain;
     }
 
@@ -757,6 +774,7 @@ SwapChainPtr VulkanPlatform::createSwapChain(void* nativeWindow, uint64_t flags,
     VulkanPlatformSurfaceSwapChain* swapchain = new VulkanPlatformSurfaceSwapChain(mImpl->mContext,
             mImpl->mPhysicalDevice, mImpl->mDevice, mImpl->mGraphicsQueue, mImpl->mInstance,
             surface, fallbackExtent, nativeWindow, flags);
+    mImpl->mSwapChains.insert(swapchain);
     return swapchain;
 }
 

@@ -75,6 +75,11 @@ public:
 
     bool isExitRequested() const;
 
+    // Signal that the backend thread has panicked. Wakes up any thread blocked in
+    // flush() or waitForCommands() and prevents future flush() calls from blocking.
+    void signalPanic();
+    bool isPanicked() const;
+
 private:
     const size_t mRequiredSize;
 
@@ -89,6 +94,7 @@ private:
     size_t mHighWatermark = 0;
     uint32_t mExitRequested = 0;
     bool mPaused = false;
+    bool mPanicked = false;
 
     static constexpr uint32_t EXIT_REQUESTED = 0x31415926;
 };

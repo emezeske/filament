@@ -53,7 +53,7 @@ private:
             std::is_same<D, VulkanTimerQuery>>;
 
     template<typename D, typename B, typename... ARGS>
-    inline D* construct(Handle<B> const& handle, ARGS&&... args) noexcept {
+    inline D* construct(Handle<B> const& handle, ARGS&&... args) {
         constexpr bool THREAD_SAFETY = requires_thread_safety<D>::value;
         D* obj = mHandleAllocatorImpl.construct<D, B>(handle, std::forward<ARGS>(args)...);
         if constexpr (THREAD_SAFETY) {

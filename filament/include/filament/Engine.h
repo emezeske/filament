@@ -441,6 +441,20 @@ public:
          * invoking asynchronous methods.
          */
         AsynchronousMode asynchronousMode = AsynchronousMode::NONE;
+
+        /**
+         * When set to true, exceptions (panics) on Filament's backend thread are caught
+         * and re-thrown on the client thread during the next flush() call, instead of
+         * terminating the process. This allows the client to detect the exception, destroy
+         * the Engine, and recover gracefully (e.g. by restarting the Engine or displaying
+         * an error message).
+         *
+         * After a backend panic, the Engine is in an unrecoverable state and must be
+         * destroyed. No further rendering is possible.
+         *
+         * Defaults to false to preserve the existing terminate-on-panic behavior.
+         */
+        bool catchBackendPanics = false;
     };
 
 
@@ -1110,6 +1124,16 @@ public:
      * queue which has a limited size.</p>
       */
     void flush();
+
+    /**
+     * Returns true if the backend rendering thread panicked.
+     *
+     * <p>When catchBackendPanics is enabled in Engine::Config and a backend
+     * panic occurs, the backend thread terminates gracefully and this flag
+     * is set. Subsequent rendering operations become no-ops. The client
+     * should destroy this Engine and create a new one to resume rendering.</p>
+     */
+    [[nodiscard]] bool isBackendPanicked() const noexcept;
 
     /**
      * Get paused state of rendering thread.

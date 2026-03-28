@@ -596,6 +596,30 @@ void FEngine::shutdown() {
     DLOG(INFO) << "CircularBuffer: High watermark " << wm / 1024 << " KiB (" << wmpct << "%)";
 #endif
 
+    if (mBackendPanicked.load(std::memory_order_acquire)) {
+        // The backend thread has already exited due to a caught panic. We cannot
+        // send any commands to the driver -- just join the thread and clean up
+        // client-side state.
+        if constexpr (UTILS_HAS_THREADING) {
+            mDriverThread.join();
+        }
+        // Now that both the backend and render threads are done, terminate the
+        // driver (which frees the Vulkan device etc.) and delete it. We can't
+        // do this in loop()'s catch handler because the render thread may still
+        // be calling synchronous driver methods.
+        if (mDriver) {
+            try {
+                mDriver->terminate();
+            } catch (...) {}
+        }
+        delete mDriver;
+        mDriver = nullptr;
+        mResourceAllocatorDisposer.reset();
+        std::destroy_at(std::launder(reinterpret_cast<DriverApi*>(&mDriverApiStorage)));
+        mJobSystem.emancipate();
+        return;
+    }
+
     DriverApi& driver = getDriverApi();
 
     /*
@@ -819,9 +843,13 @@ void FEngine::submitFrame() {
 }
 
 void FEngine::flush() {
+    if (UTILS_UNLIKELY(mBackendPanicked.load(std::memory_order_acquire))) {
+        return;
+    }
+
     // flush the command buffer
     flushCommandBuffer(mCommandBufferQueue);
-    
+
     // In single-threaded mode, we have to call execute() to drain the command
     // buffer to really free up space
     if constexpr (!UTILS_HAS_THREADING) {
@@ -834,6 +862,10 @@ void FEngine::flushAndWait() {
 }
 
 bool FEngine::flushAndWait(uint64_t const timeout) {
+    if (UTILS_UNLIKELY(mBackendPanicked.load(std::memory_order_acquire))) {
+        return false;
+    }
+
     FILAMENT_CHECK_PRECONDITION(!mCommandBufferQueue.isPaused())
             << "Cannot call Engine::flushAndWait() when rendering thread is paused!";
 
@@ -858,7 +890,7 @@ bool FEngine::flushAndWait(uint64_t const timeout) {
 // Render thread / command queue
 // -----------------------------------------------------------------------------------------------
 
-int FEngine::loop() {
+int FEngine::loopBody() {
     if (mPlatform == nullptr) {
         mPlatform = PlatformFactory::create(&mBackend);
         mOwnPlatform = true;
@@ -945,6 +977,31 @@ int FEngine::loop() {
     // terminate() is a synchronous API
     getDriverApi().terminate();
     return 0;
+}
+
+int FEngine::loop() {
+    if (!mConfig.catchBackendPanics) {
+        return loopBody();
+    }
+    try {
+        return loopBody();
+    } catch (...) {
+        mBackendPanicked.store(true, std::memory_order_release);
+        signalPendingFences();
+        mCommandBufferQueue.signalPanic();
+        return 0;
+    }
+}
+
+void FEngine::signalPendingFences() noexcept {
+    std::lock_guard const lock(mFenceListLock);
+    mFences.forEach([this](FFence* fence) {
+        fence->terminate(*this);
+    });
+}
+
+bool FEngine::isBackendPanicked() const noexcept {
+    return mBackendPanicked.load(std::memory_order_acquire);
 }
 
 void FEngine::flushCommandBuffer(CommandBufferQueue& commandBufferQueue) const {

@@ -76,6 +76,7 @@
 #include <utils/JobSystem.h>
 #include <utils/Slice.h>
 
+#include <atomic>
 #include <chrono>
 #include <memory>
 #include <new>
@@ -574,12 +575,16 @@ public:
     std::optional<bool> getFeatureFlag(char const* name) const noexcept;
     bool* getFeatureFlagPtr(std::string_view name, bool allowConstant = false) const noexcept;
 
+    [[nodiscard]] bool isBackendPanicked() const noexcept;
+
 private:
     explicit FEngine(Builder const& builder);
     void init();
     void shutdown();
 
     int loop();
+    int loopBody();
+    void signalPendingFences() noexcept;
     void flushCommandBuffer(backend::CommandBufferQueue& commandBufferQueue) const;
 
     void gcDeferredAsyncObjectDestruction();
@@ -709,6 +714,10 @@ private:
 
     // Creation parameters
     Config mConfig;
+
+    // Backend panic state: set by the backend thread when a panic is caught
+    // (only when mConfig.catchBackendPanics is true).
+    std::atomic<bool> mBackendPanicked{false};
 
     std::vector<std::function<bool()>> mDeferredAsyncObjectDestruction;
 

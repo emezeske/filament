@@ -76,6 +76,10 @@ FenceStatus FFence::wait(Mode const mode, uint64_t const timeout) {
 
     FEngine& engine = mEngine;
 
+    if (UTILS_UNLIKELY(engine.isBackendPanicked())) {
+        return FenceStatus::ERROR;
+    }
+
     if (mode == Mode::FLUSH) {
         engine.flush();
     }

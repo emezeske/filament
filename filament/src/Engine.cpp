@@ -375,6 +375,10 @@ void Engine::flush() {
     downcast(this)->flush();
 }
 
+bool Engine::isBackendPanicked() const noexcept {
+    return downcast(this)->isBackendPanicked();
+}
+
 EntityManager& Engine::getEntityManager() noexcept {
     return downcast(this)->getEntityManager();
 }
